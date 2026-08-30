@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+    <name>Styled Identity Framework</name>
+    <author>Sk</author>
+    <packageId>sk.styledidframework</packageId>
+    <supportedVersions>
+        <li>1.6</li>
+    </supportedVersions>
+    <description>A framework for style-pack authors. Lets an individual Ideology-applied ThingStyleDef carry its own custom flavor description and fired projectile.</description>
+    <modVersion>1.0.0</modVersion>
+    <url>Steam URL</url>
+    <modDependencies>
+        <li>
+            <packageId>brrainz.harmony</packageId>
+            <displayName>Harmony</displayName>
+            <steamWorkshopUrl>steam://url/CommunityFilePage/2009463077</steamWorkshopUrl>
+            <downloadUrl>https://github.com/pardeike/HarmonyRimWorld/releases/latest</downloadUrl>
+        </li>
+    </modDependencies>
+</ModMetaData>
