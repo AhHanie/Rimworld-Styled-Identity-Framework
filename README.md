@@ -1,6 +1,6 @@
 # Styled Identity Framework
 
-A framework for style-pack authors. Lets an individual Ideology-applied ThingStyleDef carry its own custom flavor description and projectile or beam configuration.
+A framework for style-pack authors. Lets an individual Ideology-applied ThingStyleDef carry its own custom flavor description and projectile or beam configuration. A projectile weapon's projectile and its firing sound can be styled independently of each other.
 
 ## Requirements
 
@@ -25,11 +25,16 @@ leaves the matching vanilla behavior completely unchanged.
     <graphicClass>Graphic_Single</graphicClass>
   </graphicData>
 
-  <!-- Framework fields: both are optional and replace only targeted behavior. -->
+  <!-- Framework fields: all are optional and replace only targeted behavior. -->
   <modExtensions>
     <li Class="Styled_Identity_Framework.StyleIdentityExtension">
       <description>A shoulder-fired energy weapon approved for high-priority targets.</description>
       <projectile>Projectile_Helldiver_LaserCannon</projectile>
+
+      <!-- Each is a SoundDef reference; all three are independently optional. -->
+      <soundCast>Shot_ChargeRifle</soundCast>
+      <soundCastTail>GunTail_Medium</soundCastTail>
+      <soundAiming>OrbitalTargeter_Aiming</soundAiming>
     </li>
   </modExtensions>
 </ThingStyleDef>
@@ -69,9 +74,20 @@ leaves the matching vanilla behavior completely unchanged.
   a `thingClass` derived from `Verse.Projectile` (for example, `Bullet`). It
   is only used by weapons whose primary verb is `Verb_LaunchProjectile`. A
   loaded `CompChangeableProjectile` (ammo) always takes precedence over this
-  override. For a purely cosmetic conversion, give the custom projectile the
-  same combat properties as the base projectile. `projectile` does not apply
-  to `Verb_ShootBeam` weapons; use `beamSource` for those instead.
+  override, even while a sound override on the same style stays active. For
+  a purely cosmetic conversion, give the custom projectile the same combat
+  properties as the base projectile. `projectile` does not apply to
+  `Verb_ShootBeam` weapons; use `beamSource` for those instead.
+- `<soundCast>`, `<soundCastTail>`, and `<soundAiming>` are each optional
+  `SoundDef` references that replace one firing sound of a
+  `Verb_LaunchProjectile` weapon, independently of `<projectile>` and of each
+  other: `soundCast` is the normal, positional one-shot played on every
+  successful shot; `soundCastTail` is the camera-relative distant/tail sound
+  played alongside it; and `soundAiming` is the sound used during the
+  weapon's aiming/warmup phase. Any of the three can be set without
+  `<projectile>`, and omitting one leaves that base weapon's corresponding
+  sound unchanged rather than silencing it. Like `projectile`, none of them
+  apply to `Verb_ShootBeam` weapons.
 
 The extension only affects a spawned item whose `Thing.StyleDef` is that
 exact `ThingStyleDef`. Unstyled items, other styles without this extension,
@@ -85,6 +101,15 @@ don't fire a projectile, so `<projectile>` has no effect on them. Instead,
 the styled beam configuration (damage, sweep, hit, visual, fire, mote,
 effecter, and sound fields). The template is never spawned by the framework;
 it exists only to hold a `Verb_ShootBeam` verb definition to copy from.
+
+`beamSource` copies the template's entire `VerbProperties`, so it already
+covers audio: `soundCast`, `soundCastTail`, and `soundAiming` behave exactly
+as they do for a normal gun, and `soundCastBeam` is the sustaining `SoundDef`
+for the continuous firing loop that most beam weapons actually want. Set
+whichever of these the template needs directly on its verb; there is no
+separate beam sound field on `StyleIdentityExtension`, and the extension's
+own `soundCast`/`soundCastTail`/`soundAiming` fields only ever apply to
+`Verb_LaunchProjectile` weapons, never to a beam weapon's `beamSource`.
 
 ```xml
 <ThingStyleDef>
@@ -125,6 +150,8 @@ it exists only to hold a `Verb_ShootBeam` verb definition to copy from.
       <beamDamageDef>Beam</beamDamageDef>
       <beamMoteDef>Mote_GraserBeamBase</beamMoteDef>
       <beamEndEffecterDef>GraserBeam_End</beamEndEffecterDef>
+
+      <!-- A sustaining SoundDef for the continuous beam sound while firing. -->
       <soundCastBeam>BeamGraser_Shooting</soundCastBeam>
     </li>
   </verbs>
@@ -171,6 +198,12 @@ Rules and limits:
   `generateCommonality=0` is also recommended, since without weapon tags an
   otherwise-normal `ThingDef` can still be picked up by generic trader
   stock or random item generation.
+- Any `SoundDef` referenced by `soundCast`, `soundCastTail`, `soundAiming`,
+  or `soundCastBeam` (whether on a beam template or a projectile style) must
+  be a valid def supplied by RimWorld itself or by the style pack/its
+  dependencies. This framework defines no audio files or `SoundDef`s of its
+  own; an unresolved reference fails through RimWorld's normal XML
+  def-reference resolution.
 
 ## Translation
 

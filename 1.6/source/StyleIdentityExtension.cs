@@ -14,6 +14,12 @@ namespace Styled_Identity_Framework
 
         public ThingDef beamSource;
 
+        public SoundDef soundCast;
+
+        public SoundDef soundCastTail;
+
+        public SoundDef soundAiming;
+
         private ThingStyleDef parent;
 
         public override void ResolveReferences(Def parentDef)
@@ -29,14 +35,16 @@ namespace Styled_Identity_Framework
                 yield break;
             }
 
-            if (string.IsNullOrWhiteSpace(description) && projectile == null && beamSource == null)
+            bool hasProjectileVerbOverride = projectile != null || soundCast != null || soundCastTail != null || soundAiming != null;
+
+            if (string.IsNullOrWhiteSpace(description) && !hasProjectileVerbOverride && beamSource == null)
             {
-                yield return "StyleIdentityExtension has neither a description, a projectile, nor a beamSource set.";
+                yield return "StyleIdentityExtension has neither a description, a projectile, a sound override, nor a beamSource set.";
             }
 
             List<ThingDef> mappedThingDefs = GetMappedThingDefs(parent).ToList();
 
-            if (projectile != null)
+            if (hasProjectileVerbOverride)
             {
                 foreach (string error in ValidateProjectile(mappedThingDefs))
                 {
@@ -52,21 +60,24 @@ namespace Styled_Identity_Framework
                 }
             }
 
-            if ((projectile != null || beamSource != null) && mappedThingDefs.Count == 0)
+            if ((hasProjectileVerbOverride || beamSource != null) && mappedThingDefs.Count == 0)
             {
-                yield return $"StyleIdentityExtension on '{parent.defName}' sets a projectile or beamSource override, but the style is not mapped to any ThingDef via a StyleCategoryDef. The override can never be reached.";
+                yield return $"StyleIdentityExtension on '{parent.defName}' sets a projectile, sound, or beamSource override, but the style is not mapped to any ThingDef via a StyleCategoryDef. The override can never be reached.";
             }
         }
 
         private IEnumerable<string> ValidateProjectile(List<ThingDef> mappedThingDefs)
         {
-            if (projectile.projectile == null)
+            if (projectile != null)
             {
-                yield return $"StyleIdentityExtension projectile '{projectile.defName}' has no ProjectileProperties (projectile.projectile is null).";
-            }
-            else if (!typeof(Projectile).IsAssignableFrom(projectile.thingClass))
-            {
-                yield return $"StyleIdentityExtension projectile '{projectile.defName}' has a thingClass ({projectile.thingClass}) that does not derive from Verse.Projectile.";
+                if (projectile.projectile == null)
+                {
+                    yield return $"StyleIdentityExtension projectile '{projectile.defName}' has no ProjectileProperties (projectile.projectile is null).";
+                }
+                else if (!typeof(Projectile).IsAssignableFrom(projectile.thingClass))
+                {
+                    yield return $"StyleIdentityExtension projectile '{projectile.defName}' has a thingClass ({projectile.thingClass}) that does not derive from Verse.Projectile.";
+                }
             }
 
             if (mappedThingDefs.Count == 0)
@@ -77,7 +88,7 @@ namespace Styled_Identity_Framework
             bool usedByLaunchVerb = mappedThingDefs.Any(td => td.Verbs != null && td.Verbs.Any(v => v.isPrimary && v.LaunchesProjectile));
             if (!usedByLaunchVerb)
             {
-                yield return $"StyleIdentityExtension on '{parent.defName}' sets a projectile override, but the style is not mapped (via a StyleCategoryDef) to any ThingDef whose primary verb launches a projectile. The override will have no effect.";
+                yield return $"StyleIdentityExtension on '{parent.defName}' sets a projectile and/or sound override, but the style is not mapped (via a StyleCategoryDef) to any ThingDef whose primary verb launches a projectile. The override will have no effect.";
             }
         }
 

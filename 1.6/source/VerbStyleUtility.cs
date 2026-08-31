@@ -76,14 +76,34 @@ namespace Styled_Identity_Framework
 
         private static void RefreshProjectile(Verb verb, VerbProperties original, StyleIdentityExtension extension)
         {
-            if (extension?.projectile == null)
+            if (extension == null || (extension.projectile == null && extension.soundCast == null && extension.soundCastTail == null && extension.soundAiming == null))
             {
                 verb.verbProps = original;
                 return;
             }
 
             VerbProperties clone = original.MemberwiseClone();
-            clone.defaultProjectile = extension.projectile;
+
+            if (extension.projectile != null)
+            {
+                clone.defaultProjectile = extension.projectile;
+            }
+
+            if (extension.soundCast != null)
+            {
+                clone.soundCast = extension.soundCast;
+            }
+
+            if (extension.soundCastTail != null)
+            {
+                clone.soundCastTail = extension.soundCastTail;
+            }
+
+            if (extension.soundAiming != null)
+            {
+                clone.soundAiming = extension.soundAiming;
+            }
+
             verb.verbProps = clone;
         }
 
