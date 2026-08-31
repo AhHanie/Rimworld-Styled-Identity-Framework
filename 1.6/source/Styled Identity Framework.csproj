@@ -68,8 +68,10 @@
     <Compile Include="Mod.cs" />
     <Compile Include="Logger.cs" />
     <Compile Include="StyleIdentityExtension.cs" />
+    <Compile Include="VerbStyleUtility.cs" />
     <Compile Include="Patches\Thing_DescriptionFlavor_Patch.cs" />
-    <Compile Include="Patches\Verb_LaunchProjectile_Projectile_Patch.cs" />
+    <Compile Include="Patches\VerbTracker_VerbStyle_Patch.cs" />
+    <Compile Include="Patches\ThingStyleHelper_VerbStyle_Patch.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
