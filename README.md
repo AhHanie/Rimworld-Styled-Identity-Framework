@@ -49,10 +49,22 @@ leaves the matching vanilla behavior completely unchanged.
 - `<overrideLabel>` is a native RimWorld `ThingStyleDef` field, not part of
   this framework. It flows through RimWorld's normal label pipeline, so
   quality, hit-point, corpse, and stack-count suffixes are still appended
-  automatically.
+  automatically. For a weapon mapped to this framework, `overrideLabel` also
+  becomes the label shown on the drafted pawn's standard weapon (attack)
+  gizmo, not just the item's inventory label.
 - `<description>` replaces only the def-level flavor text. Text added by
   components (for example, generated weapon-art descriptions) still appears
-  after it.
+  after it. For a weapon mapped to this framework, this flavor also appears
+  in the weapon gizmo's tooltip description; any vanilla postfix (such as a
+  weather range-cap warning) is kept.
+- A style needs `graphicData` or an explicit `uiIconPath` to get a custom UI
+  icon; `graphicData` alone is sufficient; RimWorld derives
+  `ThingStyleDef.UIIcon` from it automatically. When present, the framework
+  also uses that icon for `Verb.UIIcon`, which covers the targeting-cursor
+  mouse attachment and any other UI that asks the verb for its icon (the
+  weapon gizmo itself already draws the styled instance's icon natively). A
+  verb's own explicit `commandIcon` is intentional and always takes priority
+  over the style icon.
 - `<projectile>` must reference a `ThingDef` with `ProjectileProperties` and
   a `thingClass` derived from `Verse.Projectile` (for example, `Bullet`). It
   is only used by weapons whose primary verb is `Verb_LaunchProjectile`. A

@@ -89,8 +89,21 @@ namespace Styled_Identity_Framework
 
         private static StyleIdentityExtension ResolveExtension(ThingWithComps equipment)
         {
-            ThingStyleDef styleDef = equipment.StyleDef;
-            return styleDef?.GetModExtension<StyleIdentityExtension>();
+            TryGetStyledEquipment(equipment, out _, out StyleIdentityExtension extension);
+            return extension;
+        }
+
+        public static bool TryGetStyledEquipment(Verb verb, out ThingWithComps equipment, out ThingStyleDef styleDef, out StyleIdentityExtension extension)
+        {
+            equipment = verb?.EquipmentSource;
+            return TryGetStyledEquipment(equipment, out styleDef, out extension);
+        }
+
+        public static bool TryGetStyledEquipment(ThingWithComps equipment, out ThingStyleDef styleDef, out StyleIdentityExtension extension)
+        {
+            styleDef = equipment?.StyleDef;
+            extension = styleDef?.GetModExtension<StyleIdentityExtension>();
+            return equipment != null && styleDef != null && extension != null;
         }
 
         private static VerbProperties GetPrimaryBeamVerbProperties(ThingDef source)
