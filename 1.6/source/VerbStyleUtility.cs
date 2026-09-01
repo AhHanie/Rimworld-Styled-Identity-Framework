@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using RimWorld;
 using Verse;
 
 namespace Styled_Identity_Framework
@@ -117,6 +118,11 @@ namespace Styled_Identity_Framework
         {
             equipment = verb?.EquipmentSource;
             return TryGetStyledEquipment(equipment, out styleDef, out extension);
+        }
+
+        public static string GetGizmoLabelCap(ThingWithComps equipment)
+        {
+            return GenLabel.ThingLabel(equipment, 1, includeHp: false, includeQuality: false).CapitalizeFirst();
         }
 
         public static bool TryGetStyledEquipment(ThingWithComps equipment, out ThingStyleDef styleDef, out StyleIdentityExtension extension)

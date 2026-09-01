@@ -74,6 +74,7 @@
     <Compile Include="Patches\ThingStyleHelper_VerbStyle_Patch.cs" />
     <Compile Include="Patches\Verb_UIIcon_StyleIdentity_Patch.cs" />
     <Compile Include="Patches\VerbTracker_CommandStyleIdentity_Patch.cs" />
+    <Compile Include="Patches\MVCF_CommandVerbTargetExtended_StyleIdentity_Patch.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

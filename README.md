@@ -136,6 +136,7 @@ own `soundCast`/`soundCastTail`/`soundAiming` fields only ever apply to
 -->
 <ThingDef ParentName="BaseGun">
   <defName>Helldiver_BeamCannon_Template</defName>
+  <label>beam graser disruptor template (unused)</label>
   <smeltable>false</smeltable>
   <graphicData>
     <texPath>Things/Item/Weapon/Helldiver/BeamCannon</texPath>

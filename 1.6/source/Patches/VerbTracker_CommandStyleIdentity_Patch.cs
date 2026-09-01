@@ -20,12 +20,12 @@ namespace Styled_Identity_Framework.Patches
 
             if (!styleDef.overrideLabel.NullOrEmpty())
             {
-                __result.defaultLabel = ownerThing.LabelCap;
+                __result.defaultLabel = VerbStyleUtility.GetGizmoLabelCap(equipment);
             }
 
             if (!extension.description.NullOrEmpty())
             {
-                __result.defaultDesc = ownerThing.LabelCap + ": " + ownerThing.DescriptionFlavor.CapitalizeFirst();
+                __result.defaultDesc = VerbStyleUtility.GetGizmoLabelCap(equipment) + ": " + ownerThing.DescriptionFlavor.CapitalizeFirst();
             }
         }
     }
