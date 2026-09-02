@@ -1,6 +1,6 @@
 # Styled Identity Framework
 
-A framework for style-pack authors. Lets an individual Ideology-applied ThingStyleDef carry its own custom flavor description and projectile or beam configuration. A projectile weapon's projectile and its firing sound can be styled independently of each other.
+A framework for style-pack authors. Lets an individual Ideology-applied ThingStyleDef carry its own custom flavor description and projectile-weapon or beam-weapon configuration. A projectile weapon's projectile and its firing sound can be styled independently of each other via the legacy fields, or a projectile weapon's entire verb configuration can be replaced via a full template, just like beam weapons.
 
 ## Requirements
 
@@ -70,6 +70,13 @@ leaves the matching vanilla behavior completely unchanged.
   weapon gizmo itself already draws the styled instance's icon natively). A
   verb's own explicit `commandIcon` is intentional and always takes priority
   over the style icon.
+- `<projectile>`, `<soundCast>`, `<soundCastTail>`, and `<soundAiming>` are
+  the **legacy, selective override** fields for `Verb_LaunchProjectile`
+  weapons: each replaces exactly one piece of the base weapon's verb (the
+  launched projectile, or one firing sound) and leaves everything else on
+  that verb untouched. They are mutually exclusive with `<projectileSource>`
+  (see "Projectile weapon templates" below); a style must use one approach
+  or the other, not both, on the same `StyleIdentityExtension`.
 - `<projectile>` must reference a `ThingDef` with `ProjectileProperties` and
   a `thingClass` derived from `Verse.Projectile` (for example, `Bullet`). It
   is only used by weapons whose primary verb is `Verb_LaunchProjectile`. A
@@ -92,6 +99,126 @@ leaves the matching vanilla behavior completely unchanged.
 The extension only affects a spawned item whose `Thing.StyleDef` is that
 exact `ThingStyleDef`. Unstyled items, other styles without this extension,
 and items from unrelated mods keep full vanilla behavior.
+
+## Projectile weapon templates
+
+`<projectile>` and the three sound fields only ever replace one piece of a
+`Verb_LaunchProjectile` weapon's verb at a time. To replace the **entire**
+verb configuration (range, warm-up, burst count/interval, targeting,
+forced-miss settings, the launched projectile, firing/aiming sounds,
+`commandIcon`, and every other `VerbProperties` field), use
+`<projectileSource>` instead. It works exactly like `beamSource` (below),
+but for `Verb_LaunchProjectile` weapons instead of `Verb_ShootBeam` ones.
+
+`projectileSource` points at a template `ThingDef` whose primary verb is the
+`Verb_LaunchProjectile`-derived verb to copy from. The template is never
+spawned by the framework; it exists only to hold a verb definition.
+`projectileSource` is a weapon `ThingDef`, not a projectile `ThingDef`: the
+copied behavior is `Verse.VerbProperties`, and a projectile def only holds
+flight/impact/explosion/damage properties, which stay under the template's
+own `defaultProjectile`.
+
+```xml
+<ThingStyleDef>
+  <defName>Helldiver_ChargeRifle</defName>
+  <modExtensions>
+    <li Class="Styled_Identity_Framework.StyleIdentityExtension">
+      <projectileSource>Helldiver_ChargeRifle_Template</projectileSource>
+    </li>
+  </modExtensions>
+</ThingStyleDef>
+
+<!--
+  Same rules as a beamSource template below: it is a real ThingDef that goes
+  through vanilla's own def validation for whatever it inherits from, even
+  though it is never spawned. Give it the minimum BaseGun needs.
+-->
+<ThingDef ParentName="BaseGun">
+  <defName>Helldiver_ChargeRifle_Template</defName>
+  <label>charge rifle template (unused)</label>
+  <tradeability>None</tradeability>
+  <generateCommonality>0</generateCommonality>
+  <smeltable>false</smeltable>
+  <graphicData>
+    <texPath>Things/Item/Weapon/Helldiver/ChargeRifle</texPath>
+    <graphicClass>Graphic_Single</graphicClass>
+  </graphicData>
+  <statBases>
+    <Mass>4</Mass>
+  </statBases>
+  <verbs>
+    <li>
+      <verbClass>Verb_Shoot</verbClass>
+      <hasStandardCommand>true</hasStandardCommand>
+      <defaultProjectile>Projectile_Helldiver_ChargeRifle</defaultProjectile>
+      <range>30.9</range>
+      <warmupTime>0.8</warmupTime>
+      <burstShotCount>3</burstShotCount>
+      <ticksBetweenBurstShots>10</ticksBetweenBurstShots>
+      <soundCast>Shot_ChargeRifle</soundCast>
+      <soundCastTail>GunTail_Medium</soundCastTail>
+    </li>
+  </verbs>
+</ThingDef>
+
+<StyleCategoryDef>
+  <defName>HelldiverChargeWeapons</defName>
+  <label>Helldiver charge weapons</label>
+  <thingDefStyles>
+    <li>
+      <thingDef>Gun_ChargeRifle</thingDef>
+      <styleDef>Helldiver_ChargeRifle</styleDef>
+    </li>
+  </thingDefStyles>
+</StyleCategoryDef>
+```
+
+Rules and limits:
+
+- "Everything" means every field of the compatible primary `VerbProperties`,
+  exactly as for `beamSource`; this is not a hard-coded list, so any future
+  RimWorld `VerbProperties` field that `MemberwiseClone()` copies is included
+  automatically. Representative categories: targeting/range (`range`,
+  `minRange`, `forceNormalTest`), warm-up/burst (`warmupTime`,
+  `burstShotCount`, `ticksBetweenBurstShots`), projectile and forced-miss
+  (`defaultProjectile`, `ForcedMissRadius`, `forcedMissEvenDispersal`), and
+  effects/sounds/UI (`soundCast`, `soundCastTail`, `soundAiming`,
+  `commandIcon`, muzzle flash and other effecters).
+- It does **not** override values sourced from the runtime item itself.
+  Vanilla equipped-weapon accuracy and cooldown come from the mapped
+  weapon's own `Accuracy*` and `RangedWeapon_Cooldown` stats, not from the
+  template; graphics, mass, market value, tags, components, tools, and other
+  `ThingDef` data also remain on the base styled item. Per-style stat
+  substitution is intentionally outside this feature's scope.
+- A loaded `CompChangeableProjectile` (ammo) always takes precedence for the
+  launched projectile def only. It does not restore the base weapon's range,
+  burst, sounds, targeting, or other template-owned settings, and a
+  successful shot still consumes ammo through vanilla behavior.
+- `projectileSource` is only used by a weapon whose selected primary verb is
+  `Verb_LaunchProjectile`, or a subclass that is exactly the same runtime
+  verb class as the template's primary verb (for example, a normal gun with
+  `Verb_Shoot` requires a template whose primary verb also uses
+  `Verb_Shoot`; a plain `Verb_LaunchProjectile` template is not
+  interchangeable with it). It cannot convert a beam, spray, fire, ability,
+  or melee verb, and it never changes the instantiated runtime verb class.
+- `<projectileSource>` and the legacy `<projectile>`/sound fields are
+  mutually exclusive on the same `StyleIdentityExtension`; setting both is a
+  def-validation error rather than an undocumented partial-merge rule.
+- Like `beamSource`, the override is instance-scoped: it clones the
+  template's verb properties onto the runtime `Verb` of the exact styled
+  item, and never mutates `ThingDef.Verbs` on the base weapon or the
+  template. It is a shallow clone, so referenced mutable data inside
+  `VerbProperties` is shared with the template; the framework never mutates
+  it. Unstyled items, other weapons, and the template itself are unaffected.
+- The template's primary verb's `defaultProjectile` must exist, have
+  `ProjectileProperties`, and have a `thingClass` derived from
+  `Verse.Projectile`, and every mapped weapon's primary verb class must
+  exactly match the template's. Invalid or ambiguous configurations fail
+  during def validation instead of silently doing nothing.
+- The template is a real, non-abstract `ThingDef` for the same reason as a
+  `beamSource` template (see below): it is checked against vanilla's own
+  `ConfigErrors`, so give it the minimum `BaseGun` needs and consider
+  `tradeability=None`/`generateCommonality=0`.
 
 ## Beam weapons
 
@@ -182,9 +309,14 @@ Rules and limits:
   onto the runtime `Verb` of the exact styled item, and never mutates
   `ThingDef.Verbs` on the base weapon or the template. Unstyled items,
   other weapons, and the template itself are unaffected.
-- `projectile` and `beamSource` are independently optional. A style pack may
-  set both where it is mapped to separate compatible weapons; each runtime
-  verb only ever uses the field that matches its own verb type.
+- `beamSource` and `projectileSource` are independently optional and are
+  each described symmetrically above/below for their respective verb
+  family. A style pack may set both where it is mapped to separate
+  compatible beam and projectile weapons; each runtime verb only ever uses
+  the source that matches its own verb type, so no cross-application
+  occurs. The legacy `projectile`/sound fields are likewise independent of
+  `beamSource`, but mutually exclusive with `projectileSource` (see
+  "Projectile weapon templates" above).
 - Invalid configurations (a missing or ambiguous beam verb on the template,
   or a mapped weapon whose primary verb class doesn't exactly match the
   template's) fail during def validation instead of silently doing nothing.

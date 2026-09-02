@@ -12,6 +12,8 @@ namespace Styled_Identity_Framework
 
         public ThingDef projectile;
 
+        public ThingDef projectileSource;
+
         public ThingDef beamSource;
 
         public SoundDef soundCast;
@@ -35,18 +37,33 @@ namespace Styled_Identity_Framework
                 yield break;
             }
 
-            bool hasProjectileVerbOverride = projectile != null || soundCast != null || soundCastTail != null || soundAiming != null;
+            bool hasLegacyProjectileOverride = projectile != null || soundCast != null || soundCastTail != null || soundAiming != null;
+            bool hasProjectileSource = projectileSource != null;
+            bool hasAnyProjectileOverride = hasLegacyProjectileOverride || hasProjectileSource;
 
-            if (string.IsNullOrWhiteSpace(description) && !hasProjectileVerbOverride && beamSource == null)
+            if (string.IsNullOrWhiteSpace(description) && !hasAnyProjectileOverride && beamSource == null)
             {
-                yield return "StyleIdentityExtension has neither a description, a projectile, a sound override, nor a beamSource set.";
+                yield return "StyleIdentityExtension has neither a description, a projectile, a sound override, a projectileSource, nor a beamSource set.";
+            }
+
+            if (hasLegacyProjectileOverride && hasProjectileSource)
+            {
+                yield return $"StyleIdentityExtension on '{parent.defName}' sets both projectileSource and a legacy projectile/sound field (projectile, soundCast, soundCastTail, and/or soundAiming). Use either projectileSource or the legacy fields, not both.";
             }
 
             List<ThingDef> mappedThingDefs = GetMappedThingDefs(parent).ToList();
 
-            if (hasProjectileVerbOverride)
+            if (hasLegacyProjectileOverride)
             {
                 foreach (string error in ValidateProjectile(mappedThingDefs))
+                {
+                    yield return error;
+                }
+            }
+
+            if (hasProjectileSource)
+            {
+                foreach (string error in ValidateProjectileSource(mappedThingDefs))
                 {
                     yield return error;
                 }
@@ -60,9 +77,9 @@ namespace Styled_Identity_Framework
                 }
             }
 
-            if ((hasProjectileVerbOverride || beamSource != null) && mappedThingDefs.Count == 0)
+            if ((hasAnyProjectileOverride || beamSource != null) && mappedThingDefs.Count == 0)
             {
-                yield return $"StyleIdentityExtension on '{parent.defName}' sets a projectile, sound, or beamSource override, but the style is not mapped to any ThingDef via a StyleCategoryDef. The override can never be reached.";
+                yield return $"StyleIdentityExtension on '{parent.defName}' sets a projectile, sound, projectileSource, or beamSource override, but the style is not mapped to any ThingDef via a StyleCategoryDef. The override can never be reached.";
             }
         }
 
@@ -89,6 +106,64 @@ namespace Styled_Identity_Framework
             if (!usedByLaunchVerb)
             {
                 yield return $"StyleIdentityExtension on '{parent.defName}' sets a projectile and/or sound override, but the style is not mapped (via a StyleCategoryDef) to any ThingDef whose primary verb launches a projectile. The override will have no effect.";
+            }
+        }
+
+        private IEnumerable<string> ValidateProjectileSource(List<ThingDef> mappedThingDefs)
+        {
+            if (projectileSource.Verbs == null || projectileSource.Verbs.Count == 0)
+            {
+                yield return $"StyleIdentityExtension projectileSource '{projectileSource.defName}' has no verbs.";
+                yield break;
+            }
+
+            List<VerbProperties> primaryProjectileVerbs = projectileSource.Verbs.Where(v => v.isPrimary && typeof(Verb_LaunchProjectile).IsAssignableFrom(v.verbClass)).ToList();
+            if (primaryProjectileVerbs.Count == 0)
+            {
+                yield return $"StyleIdentityExtension projectileSource '{projectileSource.defName}' has no primary verb deriving from Verse.Verb_LaunchProjectile.";
+                yield break;
+            }
+
+            if (primaryProjectileVerbs.Count > 1)
+            {
+                yield return $"StyleIdentityExtension projectileSource '{projectileSource.defName}' has more than one eligible primary Verb_LaunchProjectile-derived verb; the override is ambiguous.";
+                yield break;
+            }
+
+            ThingDef templateProjectile = primaryProjectileVerbs[0].defaultProjectile;
+            if (templateProjectile == null)
+            {
+                yield return $"StyleIdentityExtension projectileSource '{projectileSource.defName}' has a primary verb with no defaultProjectile set.";
+            }
+            else if (templateProjectile.projectile == null)
+            {
+                yield return $"StyleIdentityExtension projectileSource '{projectileSource.defName}' has a defaultProjectile '{templateProjectile.defName}' with no ProjectileProperties (projectile.projectile is null).";
+            }
+            else if (!typeof(Projectile).IsAssignableFrom(templateProjectile.thingClass))
+            {
+                yield return $"StyleIdentityExtension projectileSource '{projectileSource.defName}' has a defaultProjectile '{templateProjectile.defName}' whose thingClass ({templateProjectile.thingClass}) does not derive from Verse.Projectile.";
+            }
+
+            if (mappedThingDefs.Count == 0)
+            {
+                yield break;
+            }
+
+            List<ThingDef> projectileMappedThingDefs = mappedThingDefs.Where(td => td.Verbs != null && td.Verbs.Any(v => v.isPrimary && typeof(Verb_LaunchProjectile).IsAssignableFrom(v.verbClass))).ToList();
+            if (projectileMappedThingDefs.Count == 0)
+            {
+                yield return $"StyleIdentityExtension on '{parent.defName}' sets a projectileSource override, but the style is not mapped (via a StyleCategoryDef) to any ThingDef whose primary verb is Verb_LaunchProjectile or a subclass. The override will have no effect.";
+                yield break;
+            }
+
+            Type templateVerbClass = primaryProjectileVerbs[0].verbClass;
+            foreach (ThingDef mappedThingDef in projectileMappedThingDefs)
+            {
+                VerbProperties mappedPrimaryProjectileVerb = mappedThingDef.Verbs.First(v => v.isPrimary && typeof(Verb_LaunchProjectile).IsAssignableFrom(v.verbClass));
+                if (mappedPrimaryProjectileVerb.verbClass != templateVerbClass)
+                {
+                    yield return $"StyleIdentityExtension on '{parent.defName}' maps to '{mappedThingDef.defName}' (primary verb class {mappedPrimaryProjectileVerb.verbClass}), but projectileSource '{projectileSource.defName}' has primary verb class {templateVerbClass}. The verb classes must match exactly for the style to take effect.";
+                }
             }
         }
 

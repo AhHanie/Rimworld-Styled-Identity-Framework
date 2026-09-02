@@ -77,6 +77,20 @@ namespace Styled_Identity_Framework
 
         private static void RefreshProjectile(Verb verb, VerbProperties original, StyleIdentityExtension extension)
         {
+            if (extension?.projectileSource != null)
+            {
+                VerbProperties templateProps = GetPrimaryProjectileVerbProperties(extension.projectileSource);
+                if (templateProps != null && templateProps.verbClass == verb.GetType())
+                {
+                    verb.verbProps = templateProps.MemberwiseClone();
+                }
+                else
+                {
+                    verb.verbProps = original;
+                }
+                return;
+            }
+
             if (extension == null || (extension.projectile == null && extension.soundCast == null && extension.soundCastTail == null && extension.soundAiming == null))
             {
                 verb.verbProps = original;
@@ -140,6 +154,17 @@ namespace Styled_Identity_Framework
             }
 
             List<VerbProperties> candidates = source.Verbs.Where(v => v.isPrimary && typeof(Verb_ShootBeam).IsAssignableFrom(v.verbClass)).ToList();
+            return candidates.Count == 1 ? candidates[0] : null;
+        }
+
+        private static VerbProperties GetPrimaryProjectileVerbProperties(ThingDef source)
+        {
+            if (source?.Verbs == null)
+            {
+                return null;
+            }
+
+            List<VerbProperties> candidates = source.Verbs.Where(v => v.isPrimary && typeof(Verb_LaunchProjectile).IsAssignableFrom(v.verbClass)).ToList();
             return candidates.Count == 1 ? candidates[0] : null;
         }
     }
