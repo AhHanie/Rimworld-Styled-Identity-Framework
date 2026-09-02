@@ -110,6 +110,88 @@ forced-miss settings, the launched projectile, firing/aiming sounds,
 `<projectileSource>` instead. It works exactly like `beamSource` (below),
 but for `Verb_LaunchProjectile` weapons instead of `Verb_ShootBeam` ones.
 
+This includes single-use launchers. `Verb_ShootOneUse` (vanilla
+`Gun_TripleRocket` and `Gun_DoomsdayRocket`) is itself a
+`Verb_LaunchProjectile` descendant, so a template whose primary verb is
+`Verb_ShootOneUse` supplies a full configuration to a `Verb_ShootOneUse`
+weapon the same way a `Verb_Shoot` template does for an ordinary gun. The
+weapon's exact-class rule (below) applies here too: the mapped weapon and
+the template must both declare `Verb_ShootOneUse`; a `Verb_Shoot` template
+cannot convert a normal gun into a consumable launcher, and a `Verb_Shoot`
+or plain `Verb_LaunchProjectile` template cannot turn a consumable launcher
+into a reusable one. Consumption itself is not something the template
+configures: `Verb_ShootOneUse` destroys the live equipped weapon after a
+successful final burst shot (and in some partial-burst failure/loss cases)
+entirely through RimWorld's own runtime logic, independent of any
+`VerbProperties` field. The template only supplies the copied properties
+(projectile, range, warm-up, burst, targeting, sounds, forced-miss
+settings, effects, and command icon); it must not attempt to model or
+disable consumption.
+
+```xml
+<ThingStyleDef>
+  <defName>Style_TripleRocket_SingleUseConversion</defName>
+  <overrideLabel>converted triple rocket launcher</overrideLabel>
+  <modExtensions>
+    <li Class="Styled_Identity_Framework.StyleIdentityExtension">
+      <!-- Never spawned by the framework; only its primary Verb_ShootOneUse verb is read. -->
+      <projectileSource>Template_TripleRocket_SingleUseConversion</projectileSource>
+    </li>
+  </modExtensions>
+</ThingStyleDef>
+
+<!-- Never spawned; same BaseGun safety metadata as any other projectileSource template. -->
+<ThingDef ParentName="BaseGun">
+  <defName>Template_TripleRocket_SingleUseConversion</defName>
+  <label>triple rocket single-use conversion template (unused)</label>
+  <tradeability>None</tradeability>
+  <generateCommonality>0</generateCommonality>
+  <smeltable>false</smeltable>
+  <graphicData>
+    <texPath>Things/Item/Equipment/WeaponRanged/RocketLauncher</texPath>
+    <graphicClass>Graphic_Single</graphicClass>
+  </graphicData>
+  <statBases>
+    <Mass>7</Mass>
+  </statBases>
+  <verbs>
+    <li>
+      <!-- Must be exactly Verb_ShootOneUse, matching Gun_TripleRocket's own primary verb. -->
+      <verbClass>Verb_ShootOneUse</verbClass>
+      <hasStandardCommand>true</hasStandardCommand>
+      <defaultProjectile>Bullet_DoomsdayRocket</defaultProjectile>
+      <warmupTime>3.2</warmupTime>
+      <range>28.9</range>
+      <burstShotCount>2</burstShotCount>
+      <ticksBetweenBurstShots>30</ticksBetweenBurstShots>
+      <soundCast>Shot_IncendiaryLauncher</soundCast>
+      <soundCastTail>GunTail_Medium</soundCastTail>
+      <onlyManualCast>true</onlyManualCast>
+      <targetParams>
+        <canTargetLocations>true</canTargetLocations>
+      </targetParams>
+    </li>
+  </verbs>
+</ThingDef>
+
+<StyleCategoryDef>
+  <defName>ExampleStyles_TripleRocketSingleUseConversion</defName>
+  <label>converted single-use launchers</label>
+  <thingDefStyles>
+    <li>
+      <thingDef>Gun_TripleRocket</thingDef>
+      <styleDef>Style_TripleRocket_SingleUseConversion</styleDef>
+    </li>
+  </thingDefStyles>
+</StyleCategoryDef>
+```
+
+`Gun_TripleRocket` still self-consumes exactly as it does unstyled: the
+style only changed its projectile, range, warm-up, burst, sounds, and
+forced-miss behavior. This snippet is a trimmed copy of the full worked
+example (with explanatory comments) shipped in
+`Example Mod/1.6/Defs/ThingStyleDefs/ExampleStyledSingleUseLauncher.xml`.
+
 `projectileSource` points at a template `ThingDef` whose primary verb is the
 `Verb_LaunchProjectile`-derived verb to copy from. The template is never
 spawned by the framework; it exists only to hold a verb definition.
@@ -199,8 +281,11 @@ Rules and limits:
   verb class as the template's primary verb (for example, a normal gun with
   `Verb_Shoot` requires a template whose primary verb also uses
   `Verb_Shoot`; a plain `Verb_LaunchProjectile` template is not
-  interchangeable with it). It cannot convert a beam, spray, fire, ability,
-  or melee verb, and it never changes the instantiated runtime verb class.
+  interchangeable with it). `Verb_ShootOneUse` (single-use launchers such as
+  `Gun_TripleRocket`) follows the same exact-class rule as any other
+  `Verb_LaunchProjectile` subclass. It cannot convert a beam, spray, fire,
+  ability, or melee verb, and it never changes the instantiated runtime verb
+  class.
 - `<projectileSource>` and the legacy `<projectile>`/sound fields are
   mutually exclusive on the same `StyleIdentityExtension`; setting both is a
   def-validation error rather than an undocumented partial-merge rule.
