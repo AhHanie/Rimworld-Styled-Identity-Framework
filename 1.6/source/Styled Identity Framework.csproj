@@ -68,6 +68,8 @@
     <Compile Include="Mod.cs" />
     <Compile Include="Logger.cs" />
     <Compile Include="StyleIdentityExtension.cs" />
+    <Compile Include="CompStyledStatBases.cs" />
+    <Compile Include="StyledStatBaseUtility.cs" />
     <Compile Include="VerbStyleUtility.cs" />
     <Compile Include="DebugActions_StyledMeleeRaid.cs" />
     <Compile Include="Patches\Thing_DescriptionFlavor_Patch.cs" />

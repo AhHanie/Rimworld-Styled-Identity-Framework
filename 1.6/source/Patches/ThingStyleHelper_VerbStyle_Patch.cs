@@ -10,6 +10,7 @@ namespace Styled_Identity_Framework.Patches
         public static void Postfix(Thing thing)
         {
             VerbStyleUtility.Refresh(thing as ThingWithComps);
+            StyledStatBaseUtility.NotifyStyleChanged(thing);
         }
     }
 
@@ -19,6 +20,7 @@ namespace Styled_Identity_Framework.Patches
         public static void Postfix(CompStyleable __instance)
         {
             VerbStyleUtility.Refresh(__instance.parent);
+            StyledStatBaseUtility.NotifyStyleChanged(__instance.parent);
         }
     }
 }

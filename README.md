@@ -529,6 +529,127 @@ Rules and limits:
   no capacity matching a `ManeuverDef`, or a mapping to a non-melee
   `ThingDef`) fail during def validation instead of silently doing nothing.
 
+## Stat base overrides
+
+A style can replace selected existing `ThingDef.statBases` values for the
+individual styled item, via `statBases`. This is an **absolute replacement**
+of the def's base value, not a `+` offset or `x` factor, and an omitted stat
+keeps that base completely unchanged. The item's normal stuff/quality
+adjustments, component offsets, stat parts, and post-processing all still
+run afterward exactly as they do for an unstyled item; only the starting
+base is different for this specific styled instance.
+
+```xml
+<ThingStyleDef>
+  <defName>Helldiver_LaserCannon</defName>
+  <modExtensions>
+    <li Class="Styled_Identity_Framework.StyleIdentityExtension">
+      <statBases>
+        <RangedWeapon_Cooldown>0.75</RangedWeapon_Cooldown>
+        <Mass>3.5</Mass>
+      </statBases>
+    </li>
+  </modExtensions>
+</ThingStyleDef>
+
+<StyleCategoryDef>
+  <defName>HelldiverWeapons</defName>
+  <label>Helldiver weapons</label>
+  <thingDefStyles>
+    <li>
+      <thingDef>Gun_Laser</thingDef>
+      <styleDef>Helldiver_LaserCannon</styleDef>
+    </li>
+  </thingDefStyles>
+</StyleCategoryDef>
+```
+
+A concrete, copyable version of the same idea, using two stats
+`Gun_AssaultRifle` already defines (`Mass: 3.5` and
+`RangedWeapon_Cooldown: 1.70`):
+
+```xml
+<ThingStyleDef>
+  <defName>Style_AssaultRifle_LightweightConversion</defName>
+  <overrideLabel>lightweight-converted assault rifle</overrideLabel>
+  <graphicData>
+    <texPath>Things/Item/Equipment/WeaponRanged/AssaultRifle</texPath>
+    <graphicClass>Graphic_Single</graphicClass>
+    <color>(200, 200, 200)</color>
+  </graphicData>
+  <modExtensions>
+    <li Class="Styled_Identity_Framework.StyleIdentityExtension">
+      <statBases>
+        <Mass>2.8</Mass>
+        <RangedWeapon_Cooldown>1.2</RangedWeapon_Cooldown>
+      </statBases>
+    </li>
+  </modExtensions>
+</ThingStyleDef>
+
+<StyleCategoryDef>
+  <defName>ExampleStyles_AssaultRifleLightweightConversion</defName>
+  <label>lightweight-converted weapons</label>
+  <thingDefStyles>
+    <li>
+      <thingDef>Gun_AssaultRifle</thingDef>
+      <styleDef>Style_AssaultRifle_LightweightConversion</styleDef>
+    </li>
+  </thingDefStyles>
+</StyleCategoryDef>
+```
+
+An unstyled `Gun_AssaultRifle` still shows `Mass: 3.5 kg` and
+`Cooldown: 1.70s` (subject to its own stuff/quality, as usual). A rifle with
+`Style_AssaultRifle_LightweightConversion` applied shows `Mass: 2.8 kg` and
+`Cooldown: 1.2s` instead, with everything else (accuracy, range, `WorkToMake`,
+etc.) unchanged; removing the style reverts it immediately. This is a base
+replacement, not a new stat: it works here only because `Gun_AssaultRifle`
+already defines both `Mass` and `RangedWeapon_Cooldown` in its own
+`statBases`. This snippet targets the real vanilla `Gun_AssaultRifle` so it
+works as a standalone copy-paste with no other dependency; the full worked
+example (with explanatory comments) shipped in
+`Example Mod/1.6/Defs/ThingStyleDefs/ExampleStyledStatBases.xml` applies the
+same idea to `Gun_ExampleCarbine`, a small reference weapon that ships with
+the example pack itself (`Example Mod/1.6/Defs/ThingDefs/ExampleCarbine.xml`)
+so the demonstrated numbers never drift from Core's own.
+
+Rules and limits:
+
+- `statBases` only supports stats whose `StatDef.workerClass` is exactly
+  `RimWorld.StatWorker` (the vanilla default), because that is the only
+  worker whose base-value semantics ("substitute this number before
+  stuff/quality") are generic enough to replace safely. `MarketValue` is
+  rejected explicitly (its base is computed by `StatWorker_MarketValue`
+  rather than read from `statBases`), and any other stat backed by a custom
+  worker is rejected the same way.
+- Every mapped target `ThingDef` must already define every overridden stat
+  in its own `statBases`. `statBases` can only replace an existing base
+  value; it cannot add a stat the item didn't already show on its stat
+  card, and doing so is a def-validation error rather than a silent no-op.
+- `statBases` is only used by a `ThingWithComps` mapped (via a
+  `StyleCategoryDef`) to a styleable, non-pawn `ThingDef`
+  (`ThingDef.CanBeStyled()`). Mapping to a non-styleable `ThingDef` is a
+  def-validation error.
+- The override is instance-scoped: it only ever changes the base seen by the
+  exact styled `Thing`, through a small `ThingComp` added to the mapped
+  `ThingDef`. Unstyled copies of the weapon, other styles, and any other
+  instance keep the original `ThingDef.statBases` value untouched.
+- Stuff-made items are handled correctly: the replacement base goes through
+  the same stuff/quality factors and offsets the original base would have,
+  so a styled item made from a different material or at a different quality
+  still gets consistent, proportionate results rather than an oddly-scaled
+  one.
+- The framework adds no Harmony patch to any `StatWorker`, and does no
+  per-tick work; the override is read the same way RimWorld already asks any
+  `ThingComp` for a stat offset. Applying, removing, or switching a style
+  updates the affected stats immediately, and a save/load cycle preserves
+  the same values deterministically.
+- Duplicate stat entries, a null/unset stat on an entry, an empty
+  `<statBases>` list, `MarketValue`, a custom-worker stat, and a mapping to
+  a non-styleable or stat-undefined target all fail during def validation
+  instead of silently doing nothing.
+
 ## Translation
 
 Both `overrideLabel` and the extension's `description` are translated as

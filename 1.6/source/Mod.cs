@@ -18,6 +18,8 @@ namespace Styled_Identity_Framework
 
         private void Init()
         {
+            StyledStatBaseUtility.Initialize();
+
             Harmony harmony = new Harmony("sk.styledidframework");
             harmony.PatchAll();
             Patches.MVCF_CommandVerbTargetExtended_StyleIdentity_Patch.TryPatch(harmony);

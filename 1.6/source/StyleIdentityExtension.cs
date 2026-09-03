@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using RimWorld;
 using Verse;
 
 namespace Styled_Identity_Framework
@@ -25,6 +26,8 @@ namespace Styled_Identity_Framework
         public List<Tool> tools;
 
         public SoundDef meleeHitSound;
+
+        public List<StatModifier> statBases;
 
         private ThingStyleDef parent;
 
@@ -56,10 +59,11 @@ namespace Styled_Identity_Framework
             bool hasProjectileSource = projectileSource != null;
             bool hasAnyProjectileOverride = hasLegacyProjectileOverride || hasProjectileSource;
             bool hasMeleeOverride = tools != null || meleeHitSound != null;
+            bool hasStatBases = statBases != null;
 
-            if (string.IsNullOrWhiteSpace(description) && !hasAnyProjectileOverride && beamSource == null && !hasMeleeOverride)
+            if (string.IsNullOrWhiteSpace(description) && !hasAnyProjectileOverride && beamSource == null && !hasMeleeOverride && !hasStatBases)
             {
-                yield return "StyleIdentityExtension has neither a description, a projectile, a sound override, a projectileSource, a beamSource, tools, nor a meleeHitSound set.";
+                yield return "StyleIdentityExtension has neither a description, a projectile, a sound override, a projectileSource, a beamSource, tools, a meleeHitSound, nor statBases set.";
             }
 
             if (hasLegacyProjectileOverride && hasProjectileSource)
@@ -109,9 +113,86 @@ namespace Styled_Identity_Framework
                 }
             }
 
-            if ((hasAnyProjectileOverride || beamSource != null || hasMeleeOverride) && mappedThingDefs.Count == 0)
+            if (hasStatBases)
             {
-                yield return $"StyleIdentityExtension on '{parent.defName}' sets a projectile, sound, projectileSource, beamSource, tools, or meleeHitSound override, but the style is not mapped to any ThingDef via a StyleCategoryDef. The override can never be reached.";
+                foreach (string error in ValidateStatBases(mappedThingDefs))
+                {
+                    yield return error;
+                }
+            }
+
+            if ((hasAnyProjectileOverride || beamSource != null || hasMeleeOverride || hasStatBases) && mappedThingDefs.Count == 0)
+            {
+                yield return $"StyleIdentityExtension on '{parent.defName}' sets a projectile, sound, projectileSource, beamSource, tools, meleeHitSound, or statBases override, but the style is not mapped to any ThingDef via a StyleCategoryDef. The override can never be reached.";
+            }
+        }
+
+        private IEnumerable<string> ValidateStatBases(List<ThingDef> mappedThingDefs)
+        {
+            if (statBases.NullOrEmpty())
+            {
+                yield return $"StyleIdentityExtension on '{parent.defName}' sets an empty statBases list. Omit statBases to leave existing stat bases unchanged, or supply at least one replacement.";
+                yield break;
+            }
+
+            HashSet<StatDef> seenStats = new HashSet<StatDef>();
+            List<StatDef> validStats = new List<StatDef>();
+            for (int i = 0; i < statBases.Count; i++)
+            {
+                StatModifier modifier = statBases[i];
+                if (modifier == null)
+                {
+                    yield return $"StyleIdentityExtension on '{parent.defName}' has a null statBases entry at statBases[{i}].";
+                    continue;
+                }
+
+                if (modifier.stat == null)
+                {
+                    yield return $"StyleIdentityExtension on '{parent.defName}' has a statBases entry at statBases[{i}] with no stat set.";
+                    continue;
+                }
+
+                if (!seenStats.Add(modifier.stat))
+                {
+                    yield return $"StyleIdentityExtension on '{parent.defName}' has more than one statBases entry for '{modifier.stat.defName}'.";
+                    continue;
+                }
+
+                if (modifier.stat == StatDefOf.MarketValue)
+                {
+                    yield return $"StyleIdentityExtension on '{parent.defName}' sets statBases for '{modifier.stat.defName}', but MarketValue is computed by a custom StatWorker (StatWorker_MarketValue) and cannot be replaced through statBases.";
+                    continue;
+                }
+
+                if (modifier.stat.Worker.GetType() != typeof(StatWorker))
+                {
+                    yield return $"StyleIdentityExtension on '{parent.defName}' sets statBases for '{modifier.stat.defName}', whose StatWorker is {modifier.stat.Worker.GetType().Name} rather than the base RimWorld.StatWorker. Custom-worker stats are not supported by statBases.";
+                    continue;
+                }
+
+                validStats.Add(modifier.stat);
+            }
+
+            if (mappedThingDefs.Count == 0)
+            {
+                yield break;
+            }
+
+            foreach (ThingDef mappedThingDef in mappedThingDefs)
+            {
+                if (!mappedThingDef.CanBeStyled())
+                {
+                    yield return $"StyleIdentityExtension on '{parent.defName}' sets statBases, but is mapped to '{mappedThingDef.defName}', which has no CompStyleable. statBases requires a styleable target.";
+                    continue;
+                }
+
+                foreach (StatDef stat in validStats)
+                {
+                    if (!mappedThingDef.statBases.StatListContains(stat))
+                    {
+                        yield return $"StyleIdentityExtension on '{parent.defName}' sets statBases for '{stat.defName}', but mapped ThingDef '{mappedThingDef.defName}' does not define '{stat.defName}' in its own statBases. statBases can only replace an existing base value, not add a new one.";
+                    }
+                }
             }
         }
 
@@ -297,7 +378,7 @@ namespace Styled_Identity_Framework
             }
         }
 
-        private static IEnumerable<ThingDef> GetMappedThingDefs(ThingStyleDef styleDef)
+        internal static IEnumerable<ThingDef> GetMappedThingDefs(ThingStyleDef styleDef)
         {
             HashSet<ThingDef> seen = new HashSet<ThingDef>();
             foreach (StyleCategoryDef category in DefDatabase<StyleCategoryDef>.AllDefs)
