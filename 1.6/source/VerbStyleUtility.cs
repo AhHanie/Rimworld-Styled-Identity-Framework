@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -18,15 +19,17 @@ namespace Styled_Identity_Framework
             }
 
             CompEquippable equippable = equipment.GetComp<CompEquippable>();
-            List<Verb> verbs = equippable?.AllVerbs;
-            if (verbs == null)
+            if (equippable == null)
             {
                 return;
             }
 
-            foreach (Verb verb in verbs)
+            equippable.VerbTracker.VerbsNeedReinitOnLoad();
+            _ = equippable.AllVerbs;
+
+            if (equipment.ParentHolder is Pawn_EquipmentTracker equipmentTracker && equipmentTracker.pawn?.meleeVerbs != null)
             {
-                Refresh(verb);
+                equipmentTracker.pawn.meleeVerbs.Notify_PawnDespawned();
             }
         }
 
@@ -120,6 +123,63 @@ namespace Styled_Identity_Framework
             }
 
             verb.verbProps = clone;
+        }
+
+        private static bool? anyMeleeToolsStyleLoaded;
+
+        private static bool? anyMeleeHitSoundStyleLoaded;
+
+        public static bool AnyMeleeToolsStyleLoaded()
+        {
+            if (!anyMeleeToolsStyleLoaded.HasValue)
+            {
+                anyMeleeToolsStyleLoaded = DefDatabase<ThingStyleDef>.AllDefsListForReading.Any(styleDef => styleDef.GetModExtension<StyleIdentityExtension>()?.tools != null);
+            }
+
+            return anyMeleeToolsStyleLoaded.Value;
+        }
+
+        public static bool AnyMeleeHitSoundStyleLoaded()
+        {
+            if (!anyMeleeHitSoundStyleLoaded.HasValue)
+            {
+                anyMeleeHitSoundStyleLoaded = DefDatabase<ThingStyleDef>.AllDefsListForReading.Any(styleDef => styleDef.GetModExtension<StyleIdentityExtension>()?.meleeHitSound != null);
+            }
+
+            return anyMeleeHitSoundStyleLoaded.Value;
+        }
+
+        public static List<Tool> GetToolsForVerbInitialization(IVerbOwner owner)
+        {
+            if (owner is CompEquippable equippable && TryGetStyledEquipment(equippable.parent, out _, out StyleIdentityExtension extension) && extension.tools != null)
+            {
+                return extension.tools;
+            }
+
+            return owner.Tools;
+        }
+
+        [ThreadStatic]
+        private static Thing currentMeleeStatThing;
+
+        public static void SetMeleeStatThing(Thing thing)
+        {
+            currentMeleeStatThing = thing;
+        }
+
+        public static void ClearMeleeStatThing()
+        {
+            currentMeleeStatThing = null;
+        }
+
+        public static List<Tool> ResolveMeleeStatTools(List<Tool> originalTools)
+        {
+            if (currentMeleeStatThing is ThingWithComps equipment && TryGetStyledEquipment(equipment, out _, out StyleIdentityExtension extension) && extension.tools != null)
+            {
+                return extension.tools;
+            }
+
+            return originalTools;
         }
 
         private static StyleIdentityExtension ResolveExtension(ThingWithComps equipment)

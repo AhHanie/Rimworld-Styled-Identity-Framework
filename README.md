@@ -423,6 +423,112 @@ Rules and limits:
   own; an unresolved reference fails through RimWorld's normal XML
   def-reference resolution.
 
+## Melee weapons
+
+Melee support lets a style replace a weapon's complete vanilla `<tools>`
+list and its weapon-level melee hit sound. The list is a replacement, not an
+append: its capacities select vanilla manoeuvres, and its power, cooldown,
+armor penetration, extra damage, hit/miss sounds, and battle-log labels use
+RimWorld's normal `Tool` behavior.
+
+```xml
+<ThingStyleDef>
+  <defName>Style_Mace_MonobladeConversion</defName>
+  <overrideLabel>monoblade-converted mace</overrideLabel>
+  <graphicData>
+    <texPath>Things/Item/Equipment/WeaponMelee/Mace</texPath>
+    <graphicClass>Graphic_Single</graphicClass>
+    <color>(100, 210, 235)</color>
+  </graphicData>
+  <modExtensions>
+    <li Class="Styled_Identity_Framework.StyleIdentityExtension">
+      <description>A mace rebuilt around a compact vibrating blade. It trades the original crushing head for rapid cutting strikes.</description>
+
+      <!-- Replaces Mace's complete handle/head list; this does not append a tool. -->
+      <tools>
+        <li>
+          <label>vibrating edge</label>
+          <capacities>
+            <!-- Cut resolves to the vanilla Slash manoeuvre. -->
+            <li>Cut</li>
+          </capacities>
+          <power>18</power>
+          <cooldownTime>1.7</cooldownTime>
+          <soundMeleeHit>MeleeHit_Metal_Sharp</soundMeleeHit>
+          <soundMeleeMiss>Pawn_Melee_Punch_Miss</soundMeleeMiss>
+        </li>
+      </tools>
+
+      <!-- Weapon-level sound: wins over the tool/material hit sound. -->
+      <meleeHitSound>MeleeHit_Metal_Sharp</meleeHitSound>
+    </li>
+  </modExtensions>
+</ThingStyleDef>
+
+<StyleCategoryDef>
+  <defName>ExampleStyles_MaceMonobladeConversion</defName>
+  <label>monoblade weapons</label>
+  <thingDefStyles>
+    <li>
+      <thingDef>MeleeWeapon_Mace</thingDef>
+      <styleDef>Style_Mace_MonobladeConversion</styleDef>
+    </li>
+  </thingDefStyles>
+</StyleCategoryDef>
+```
+
+This snippet is a trimmed copy of the full worked example (with explanatory
+comments) shipped in
+`Example Mod/1.6/Defs/ThingStyleDefs/ExampleStyledMeleeWeapon.xml`.
+
+Rules and limits:
+
+- `<tools>` is only used by a `ThingWithComps` mapped (via a
+  `StyleCategoryDef`) to a melee `ThingDef` (`ThingDef.IsMeleeWeapon`). An
+  omitted `<tools>` (the default) leaves the base weapon's own tools
+  completely unchanged; a present `<tools>` list replaces all of them,
+  including their capacities/manoeuvres, power, cooldown, armor penetration,
+  extra damage, battle-log labels, and hit/miss sounds. Each tool follows
+  normal vanilla `Tool` rules: it needs at least one capacity that matches a
+  `ManeuverDef`, or it can never produce a usable attack.
+- The replacement changes actual melee combat, not just displayed stats: it
+  changes which runtime `Verb_MeleeAttackDamage` objects RimWorld builds for
+  the equipped instance, so damage, cooldown, AI/player melee-verb selection,
+  and the melee debug table all use the replacement tools. It never mutates
+  `ThingDef.tools` on the base weapon; unstyled copies of the weapon, other
+  styles, and any other instance keep full vanilla tools.
+- The item's info card reflects the replacement too: "Melee average DPS" and
+  "Melee average armor penetration" (and their tooltip's per-tool breakdown)
+  are computed from the styled instance's own tools, not the base weapon's,
+  because both stats are re-pointed at the replacement list specifically for
+  that equipped `Thing`. Only that specific instance's stat display changes;
+  the same stats shown for an unstyled copy, another instance, or the def in
+  the abstract (for example, in the crafting bill list) are unaffected.
+- `<meleeHitSound>` mirrors vanilla `ThingDef.meleeHitSound`: it overrides
+  the selected tool's `<soundMeleeHit>` and the weapon material's sound for
+  both pawn and building hits. A target building's own
+  `<soundMeleeHitOverride>` still takes priority, exactly as it does in
+  vanilla. Omit `<meleeHitSound>` to let the replacement tool or material
+  choose the hit sound. `<meleeHitSound>` is independent of `<tools>` and can
+  be set with or without it. The framework defines no SoundDefs or audio
+  clips of its own; referenced sounds must come from RimWorld, the style
+  pack, or one of its dependencies.
+- The framework does not add a separate miss-sound field: a replacement
+  tool's own `<soundMeleeMiss>` already reaches vanilla's normal miss/dodge
+  sound selection, so set it directly on the tool.
+- `<tools>` and `<meleeHitSound>` are independent of every projectile and
+  beam field above; a style may combine a melee override with any of them if
+  it is mapped to multiple compatible weapon defs, though in practice a
+  given weapon only ever exercises the field family that matches its own
+  verb/tool type.
+- Applying, removing, or replacing a style on an equipped weapon rebuilds its
+  runtime verbs immediately, and a save/load cycle reconstructs the same
+  styled tools deterministically; the equipped pawn never keeps using a
+  stale verb from a tool the style no longer supplies.
+- Invalid configurations (an empty or malformed `<tools>` list, a tool with
+  no capacity matching a `ManeuverDef`, or a mapping to a non-melee
+  `ThingDef`) fail during def validation instead of silently doing nothing.
+
 ## Translation
 
 Both `overrideLabel` and the extension's `description` are translated as

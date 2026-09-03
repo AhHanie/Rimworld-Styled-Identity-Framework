@@ -69,12 +69,16 @@
     <Compile Include="Logger.cs" />
     <Compile Include="StyleIdentityExtension.cs" />
     <Compile Include="VerbStyleUtility.cs" />
+    <Compile Include="DebugActions_StyledMeleeRaid.cs" />
     <Compile Include="Patches\Thing_DescriptionFlavor_Patch.cs" />
     <Compile Include="Patches\VerbTracker_VerbStyle_Patch.cs" />
     <Compile Include="Patches\ThingStyleHelper_VerbStyle_Patch.cs" />
     <Compile Include="Patches\Verb_UIIcon_StyleIdentity_Patch.cs" />
     <Compile Include="Patches\VerbTracker_CommandStyleIdentity_Patch.cs" />
     <Compile Include="Patches\MVCF_CommandVerbTargetExtended_StyleIdentity_Patch.cs" />
+    <Compile Include="Patches\VerbTracker_MeleeTools_StyleIdentity_Patch.cs" />
+    <Compile Include="Patches\Verb_MeleeAttack_SoundStyleIdentity_Patch.cs" />
+    <Compile Include="Patches\StatWorker_MeleeTools_StyleIdentity_Patch.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

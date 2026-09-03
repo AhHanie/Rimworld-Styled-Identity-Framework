@@ -22,11 +22,26 @@ namespace Styled_Identity_Framework
 
         public SoundDef soundAiming;
 
+        public List<Tool> tools;
+
+        public SoundDef meleeHitSound;
+
         private ThingStyleDef parent;
 
         public override void ResolveReferences(Def parentDef)
         {
             parent = parentDef as ThingStyleDef;
+
+            if (tools != null)
+            {
+                for (int i = 0; i < tools.Count; i++)
+                {
+                    if (tools[i] != null)
+                    {
+                        tools[i].id = i.ToString();
+                    }
+                }
+            }
         }
 
         public override IEnumerable<string> ConfigErrors()
@@ -40,10 +55,11 @@ namespace Styled_Identity_Framework
             bool hasLegacyProjectileOverride = projectile != null || soundCast != null || soundCastTail != null || soundAiming != null;
             bool hasProjectileSource = projectileSource != null;
             bool hasAnyProjectileOverride = hasLegacyProjectileOverride || hasProjectileSource;
+            bool hasMeleeOverride = tools != null || meleeHitSound != null;
 
-            if (string.IsNullOrWhiteSpace(description) && !hasAnyProjectileOverride && beamSource == null)
+            if (string.IsNullOrWhiteSpace(description) && !hasAnyProjectileOverride && beamSource == null && !hasMeleeOverride)
             {
-                yield return "StyleIdentityExtension has neither a description, a projectile, a sound override, a projectileSource, nor a beamSource set.";
+                yield return "StyleIdentityExtension has neither a description, a projectile, a sound override, a projectileSource, a beamSource, tools, nor a meleeHitSound set.";
             }
 
             if (hasLegacyProjectileOverride && hasProjectileSource)
@@ -77,9 +93,25 @@ namespace Styled_Identity_Framework
                 }
             }
 
-            if ((hasAnyProjectileOverride || beamSource != null) && mappedThingDefs.Count == 0)
+            if (tools != null)
             {
-                yield return $"StyleIdentityExtension on '{parent.defName}' sets a projectile, sound, projectileSource, or beamSource override, but the style is not mapped to any ThingDef via a StyleCategoryDef. The override can never be reached.";
+                foreach (string error in ValidateMeleeTools(mappedThingDefs))
+                {
+                    yield return error;
+                }
+            }
+
+            if (meleeHitSound != null)
+            {
+                foreach (string error in ValidateMeleeHitSound(mappedThingDefs))
+                {
+                    yield return error;
+                }
+            }
+
+            if ((hasAnyProjectileOverride || beamSource != null || hasMeleeOverride) && mappedThingDefs.Count == 0)
+            {
+                yield return $"StyleIdentityExtension on '{parent.defName}' sets a projectile, sound, projectileSource, beamSource, tools, or meleeHitSound override, but the style is not mapped to any ThingDef via a StyleCategoryDef. The override can never be reached.";
             }
         }
 
@@ -208,6 +240,60 @@ namespace Styled_Identity_Framework
                 {
                     yield return $"StyleIdentityExtension on '{parent.defName}' maps to '{mappedThingDef.defName}' (primary verb class {mappedPrimaryBeamVerb.verbClass}), but beamSource '{beamSource.defName}' has primary verb class {templateVerbClass}. The verb classes must match exactly for the style to take effect.";
                 }
+            }
+        }
+
+        private IEnumerable<string> ValidateMeleeTools(List<ThingDef> mappedThingDefs)
+        {
+            if (tools.NullOrEmpty())
+            {
+                yield return $"StyleIdentityExtension on '{parent.defName}' sets an empty tools list. Omit tools to keep the base weapon's tools unchanged, or supply at least one replacement tool.";
+                yield break;
+            }
+
+            for (int i = 0; i < tools.Count; i++)
+            {
+                Tool tool = tools[i];
+                if (tool == null)
+                {
+                    yield return $"StyleIdentityExtension on '{parent.defName}' has a null tool entry at tools[{i}].";
+                    continue;
+                }
+
+                foreach (string error in tool.ConfigErrors())
+                {
+                    yield return error;
+                }
+
+                if (tool.capacities.NullOrEmpty() || !tool.Maneuvers.Any())
+                {
+                    yield return $"StyleIdentityExtension on '{parent.defName}' has a tool ('{tool.label}') with no capacities matching a ManeuverDef; it would never produce a usable melee attack.";
+                }
+            }
+
+            if (mappedThingDefs.Count == 0)
+            {
+                yield break;
+            }
+
+            bool anyMeleeMapping = mappedThingDefs.Any(td => td.IsMeleeWeapon);
+            if (!anyMeleeMapping)
+            {
+                yield return $"StyleIdentityExtension on '{parent.defName}' sets tools, but the style is not mapped (via a StyleCategoryDef) to any melee ThingDef (ThingDef.IsMeleeWeapon). The override will have no effect.";
+            }
+        }
+
+        private IEnumerable<string> ValidateMeleeHitSound(List<ThingDef> mappedThingDefs)
+        {
+            if (mappedThingDefs.Count == 0)
+            {
+                yield break;
+            }
+
+            bool anyMeleeMapping = mappedThingDefs.Any(td => td.IsMeleeWeapon);
+            if (!anyMeleeMapping)
+            {
+                yield return $"StyleIdentityExtension on '{parent.defName}' sets meleeHitSound, but the style is not mapped (via a StyleCategoryDef) to any melee ThingDef (ThingDef.IsMeleeWeapon). The override will have no effect.";
             }
         }
 
