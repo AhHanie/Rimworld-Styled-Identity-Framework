@@ -266,17 +266,6 @@ namespace Styled_Identity_Framework
             if (projectileMappedThingDefs.Count == 0)
             {
                 yield return $"StyleIdentityExtension on '{parent.defName}' sets a projectileSource override, but the style is not mapped (via a StyleCategoryDef) to any ThingDef whose primary verb is Verb_LaunchProjectile or a subclass. The override will have no effect.";
-                yield break;
-            }
-
-            Type templateVerbClass = primaryProjectileVerbs[0].verbClass;
-            foreach (ThingDef mappedThingDef in projectileMappedThingDefs)
-            {
-                VerbProperties mappedPrimaryProjectileVerb = mappedThingDef.Verbs.First(v => v.isPrimary && typeof(Verb_LaunchProjectile).IsAssignableFrom(v.verbClass));
-                if (mappedPrimaryProjectileVerb.verbClass != templateVerbClass)
-                {
-                    yield return $"StyleIdentityExtension on '{parent.defName}' maps to '{mappedThingDef.defName}' (primary verb class {mappedPrimaryProjectileVerb.verbClass}), but projectileSource '{projectileSource.defName}' has primary verb class {templateVerbClass}. The verb classes must match exactly for the style to take effect.";
-                }
             }
         }
 
@@ -310,17 +299,6 @@ namespace Styled_Identity_Framework
             if (beamMappedThingDefs.Count == 0)
             {
                 yield return $"StyleIdentityExtension on '{parent.defName}' sets a beamSource override, but the style is not mapped (via a StyleCategoryDef) to any ThingDef whose primary verb is Verb_ShootBeam or a subclass. The override will have no effect.";
-                yield break;
-            }
-
-            Type templateVerbClass = primaryBeamVerbs[0].verbClass;
-            foreach (ThingDef mappedThingDef in beamMappedThingDefs)
-            {
-                VerbProperties mappedPrimaryBeamVerb = mappedThingDef.Verbs.First(v => v.isPrimary && typeof(Verb_ShootBeam).IsAssignableFrom(v.verbClass));
-                if (mappedPrimaryBeamVerb.verbClass != templateVerbClass)
-                {
-                    yield return $"StyleIdentityExtension on '{parent.defName}' maps to '{mappedThingDef.defName}' (primary verb class {mappedPrimaryBeamVerb.verbClass}), but beamSource '{beamSource.defName}' has primary verb class {templateVerbClass}. The verb classes must match exactly for the style to take effect.";
-                }
             }
         }
 

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using RimWorld;
 using Verse;
 
@@ -9,8 +8,6 @@ namespace Styled_Identity_Framework
 {
     public static class VerbStyleUtility
     {
-        private static readonly ConditionalWeakTable<Verb, VerbProperties> OriginalVerbProps = new ConditionalWeakTable<Verb, VerbProperties>();
-
         public static void Refresh(ThingWithComps equipment)
         {
             if (equipment == null)
@@ -33,74 +30,67 @@ namespace Styled_Identity_Framework
             }
         }
 
-        public static void Refresh(Verb verb)
+        public static List<VerbProperties> GetVerbPropertiesForVerbInitialization(CompEquippable equippable, List<VerbProperties> original)
         {
-            bool isBeam = verb is Verb_ShootBeam;
-            bool isProjectile = verb is Verb_LaunchProjectile;
-            if ((!isBeam && !isProjectile) || verb.verbProps == null)
+            if (equippable?.parent == null || original.NullOrEmpty())
             {
-                return;
+                return original;
             }
 
-            ThingWithComps equipment = verb.EquipmentSource;
-            if (equipment == null)
+            if (!TryGetStyledEquipment(equippable.parent, out _, out StyleIdentityExtension extension))
             {
-                return;
+                return original;
             }
 
-            if (!OriginalVerbProps.TryGetValue(verb, out VerbProperties original))
+            List<VerbProperties> result = original;
+
+            if (extension.projectileSource != null)
             {
-                original = verb.verbProps;
-                OriginalVerbProps.Add(verb, original);
+                result = ReplacePrimaryVerbProperties(result, typeof(Verb_LaunchProjectile), GetPrimaryProjectileVerbProperties(extension.projectileSource));
+            }
+            else if (extension.projectile != null || extension.soundCast != null || extension.soundCastTail != null || extension.soundAiming != null)
+            {
+                result = ApplyLegacyProjectileOverlay(result, extension);
             }
 
-            StyleIdentityExtension extension = ResolveExtension(equipment);
+            if (extension.beamSource != null)
+            {
+                result = ReplacePrimaryVerbProperties(result, typeof(Verb_ShootBeam), GetPrimaryBeamVerbProperties(extension.beamSource));
+            }
 
-            if (isBeam)
-            {
-                RefreshBeam(verb, original, extension);
-            }
-            else
-            {
-                RefreshProjectile(verb, original, extension);
-            }
+            return result;
         }
 
-        private static void RefreshBeam(Verb verb, VerbProperties original, StyleIdentityExtension extension)
+        private static List<VerbProperties> ReplacePrimaryVerbProperties(List<VerbProperties> current, Type family, VerbProperties templateProps)
         {
-            VerbProperties templateProps = GetPrimaryBeamVerbProperties(extension?.beamSource);
-            if (templateProps == null || templateProps.verbClass != verb.GetType())
+            if (templateProps == null)
             {
-                verb.verbProps = original;
-                return;
+                return current;
             }
 
-            verb.verbProps = templateProps.MemberwiseClone();
+            int index = current.FindIndex(v => v.isPrimary && family.IsAssignableFrom(v.verbClass));
+            if (index < 0)
+            {
+                Logger.Warning($"StyleIdentityExtension could not find a mapped primary {family.Name} verb to replace; keeping the base verb list unchanged.");
+                return current;
+            }
+
+            List<VerbProperties> copy = new List<VerbProperties>(current)
+            {
+                [index] = templateProps.MemberwiseClone()
+            };
+            return copy;
         }
 
-        private static void RefreshProjectile(Verb verb, VerbProperties original, StyleIdentityExtension extension)
+        private static List<VerbProperties> ApplyLegacyProjectileOverlay(List<VerbProperties> current, StyleIdentityExtension extension)
         {
-            if (extension?.projectileSource != null)
+            int index = current.FindIndex(v => v.isPrimary && typeof(Verb_LaunchProjectile).IsAssignableFrom(v.verbClass));
+            if (index < 0)
             {
-                VerbProperties templateProps = GetPrimaryProjectileVerbProperties(extension.projectileSource);
-                if (templateProps != null && templateProps.verbClass == verb.GetType())
-                {
-                    verb.verbProps = templateProps.MemberwiseClone();
-                }
-                else
-                {
-                    verb.verbProps = original;
-                }
-                return;
+                return current;
             }
 
-            if (extension == null || (extension.projectile == null && extension.soundCast == null && extension.soundCastTail == null && extension.soundAiming == null))
-            {
-                verb.verbProps = original;
-                return;
-            }
-
-            VerbProperties clone = original.MemberwiseClone();
+            VerbProperties clone = current[index].MemberwiseClone();
 
             if (extension.projectile != null)
             {
@@ -122,7 +112,11 @@ namespace Styled_Identity_Framework
                 clone.soundAiming = extension.soundAiming;
             }
 
-            verb.verbProps = clone;
+            List<VerbProperties> copy = new List<VerbProperties>(current)
+            {
+                [index] = clone
+            };
+            return copy;
         }
 
         private static bool? anyMeleeToolsStyleLoaded;
@@ -180,12 +174,6 @@ namespace Styled_Identity_Framework
             }
 
             return originalTools;
-        }
-
-        private static StyleIdentityExtension ResolveExtension(ThingWithComps equipment)
-        {
-            TryGetStyledEquipment(equipment, out _, out StyleIdentityExtension extension);
-            return extension;
         }
 
         public static bool TryGetStyledEquipment(Verb verb, out ThingWithComps equipment, out ThingStyleDef styleDef, out StyleIdentityExtension extension)

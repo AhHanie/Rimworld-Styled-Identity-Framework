@@ -115,18 +115,17 @@ This includes single-use launchers. `Verb_ShootOneUse` (vanilla
 `Verb_LaunchProjectile` descendant, so a template whose primary verb is
 `Verb_ShootOneUse` supplies a full configuration to a `Verb_ShootOneUse`
 weapon the same way a `Verb_Shoot` template does for an ordinary gun. The
-weapon's exact-class rule (below) applies here too: the mapped weapon and
-the template must both declare `Verb_ShootOneUse`; a `Verb_Shoot` template
-cannot convert a normal gun into a consumable launcher, and a `Verb_Shoot`
-or plain `Verb_LaunchProjectile` template cannot turn a consumable launcher
-into a reusable one. Consumption itself is not something the template
-configures: `Verb_ShootOneUse` destroys the live equipped weapon after a
-successful final burst shot (and in some partial-burst failure/loss cases)
-entirely through RimWorld's own runtime logic, independent of any
-`VerbProperties` field. The template only supplies the copied properties
-(projectile, range, warm-up, burst, targeting, sounds, forced-miss
-settings, effects, and command icon); it must not attempt to model or
-disable consumption.
+template's verb class does not have to match the mapped weapon's own class
+(see "Runtime class switching" below): a `Verb_ShootOneUse` template can
+just as easily convert an ordinary `Verb_Shoot` gun into a self-consuming
+one, or a consumable launcher into a reusable `Verb_Shoot`-based weapon.
+Consumption itself is not something the template configures: `Verb_ShootOneUse`
+destroys the live equipped weapon after a successful final burst shot (and
+in some partial-burst failure/loss cases) entirely through RimWorld's own
+runtime logic, independent of any `VerbProperties` field. The template only
+supplies the copied properties (projectile, range, warm-up, burst,
+targeting, sounds, forced-miss settings, effects, and command icon); it
+must not attempt to model or disable consumption.
 
 ```xml
 <ThingStyleDef>
@@ -156,7 +155,7 @@ disable consumption.
   </statBases>
   <verbs>
     <li>
-      <!-- Must be exactly Verb_ShootOneUse, matching Gun_TripleRocket's own primary verb. -->
+      <!-- Verb_ShootOneUse here, matching Gun_TripleRocket's own primary verb; see "Runtime class switching" below for a template that switches classes instead. -->
       <verbClass>Verb_ShootOneUse</verbClass>
       <hasStandardCommand>true</hasStandardCommand>
       <defaultProjectile>Bullet_DoomsdayRocket</defaultProjectile>
@@ -277,15 +276,14 @@ Rules and limits:
   burst, sounds, targeting, or other template-owned settings, and a
   successful shot still consumes ammo through vanilla behavior.
 - `projectileSource` is only used by a weapon whose selected primary verb is
-  `Verb_LaunchProjectile`, or a subclass that is exactly the same runtime
-  verb class as the template's primary verb (for example, a normal gun with
-  `Verb_Shoot` requires a template whose primary verb also uses
-  `Verb_Shoot`; a plain `Verb_LaunchProjectile` template is not
-  interchangeable with it). `Verb_ShootOneUse` (single-use launchers such as
-  `Gun_TripleRocket`) follows the same exact-class rule as any other
-  `Verb_LaunchProjectile` subclass. It cannot convert a beam, spray, fire,
-  ability, or melee verb, and it never changes the instantiated runtime verb
-  class.
+  `Verb_LaunchProjectile` or any descendant (including `Verb_Shoot` and
+  `Verb_ShootOneUse`), and only if the template's own primary verb is also a
+  `Verb_LaunchProjectile` descendant. The template's runtime verb class does
+  not have to match the mapped weapon's own class within that family: see
+  "Runtime class switching" below for how and why a template can change
+  which concrete verb class the styled item actually instantiates. It
+  cannot convert a beam, spray, fire, ability, or melee verb; those verb
+  families are outside `projectileSource`'s scope entirely.
 - `<projectileSource>` and the legacy `<projectile>`/sound fields are
   mutually exclusive on the same `StyleIdentityExtension`; setting both is a
   def-validation error rather than an undocumented partial-merge rule.
@@ -297,13 +295,109 @@ Rules and limits:
   it. Unstyled items, other weapons, and the template itself are unaffected.
 - The template's primary verb's `defaultProjectile` must exist, have
   `ProjectileProperties`, and have a `thingClass` derived from
-  `Verse.Projectile`, and every mapped weapon's primary verb class must
-  exactly match the template's. Invalid or ambiguous configurations fail
-  during def validation instead of silently doing nothing.
+  `Verse.Projectile`. Invalid or ambiguous configurations fail during def
+  validation instead of silently doing nothing.
 - The template is a real, non-abstract `ThingDef` for the same reason as a
   `beamSource` template (see below): it is checked against vanilla's own
   `ConfigErrors`, so give it the minimum `BaseGun` needs and consider
   `tradeability=None`/`generateCommonality=0`.
+
+## Runtime class switching
+
+`projectileSource` and `beamSource` copy the template's complete
+`VerbProperties`, including `<verbClass>`. If the template's primary verb
+uses a different concrete class than the mapped weapon's own primary verb
+(while both stay in the same compatible family - `Verb_LaunchProjectile`
+descendants for `projectileSource`, `Verb_ShootBeam` descendants for
+`beamSource`), the styled item actually instantiates and runs the
+template's class, not the mapped weapon's own class. This is not just a
+property copy onto the original verb object: RimWorld builds a distinct
+runtime `Verb` per concrete class, so a template that specifies
+`Verb_ShootOneUse` makes the styled item behave like a self-consuming
+single-use weapon (including that class's own overridden behavior, not
+just its `VerbProperties` fields), even if the mapped weapon's own class is
+the ordinary `Verb_Shoot`.
+
+```xml
+<ThingStyleDef>
+  <defName>Style_AssaultRifle_OverchargeConversion</defName>
+  <modExtensions>
+    <li Class="Styled_Identity_Framework.StyleIdentityExtension">
+      <!-- Gun_AssaultRifle's own primary verb is Verb_Shoot; this template's is Verb_ShootOneUse. -->
+      <projectileSource>Template_AssaultRifle_Overcharge</projectileSource>
+    </li>
+  </modExtensions>
+</ThingStyleDef>
+
+<ThingDef ParentName="BaseGun">
+  <defName>Template_AssaultRifle_Overcharge</defName>
+  <label>assault rifle overcharge template (unused)</label>
+  <tradeability>None</tradeability>
+  <generateCommonality>0</generateCommonality>
+  <smeltable>false</smeltable>
+  <graphicData>
+    <texPath>Things/Item/Equipment/WeaponRanged/AssaultRifle</texPath>
+    <graphicClass>Graphic_Single</graphicClass>
+  </graphicData>
+  <statBases>
+    <Mass>3.5</Mass>
+  </statBases>
+  <verbs>
+    <li>
+      <!-- A different concrete class than Gun_AssaultRifle's own Verb_Shoot. -->
+      <verbClass>Verb_ShootOneUse</verbClass>
+      <hasStandardCommand>true</hasStandardCommand>
+      <defaultProjectile>Bullet_ChargeRifle</defaultProjectile>
+      <warmupTime>0.6</warmupTime>
+      <range>23.9</range>
+      <burstShotCount>12</burstShotCount>
+      <ticksBetweenBurstShots>3</ticksBetweenBurstShots>
+      <soundCast>Shot_ChargeRifle</soundCast>
+      <soundCastTail>GunTail_Medium</soundCastTail>
+    </li>
+  </verbs>
+</ThingDef>
+
+<StyleCategoryDef>
+  <defName>ExampleStyles_AssaultRifleOverchargeConversion</defName>
+  <label>overcharge-converted weapons</label>
+  <thingDefStyles>
+    <li>
+      <thingDef>Gun_AssaultRifle</thingDef>
+      <styleDef>Style_AssaultRifle_OverchargeConversion</styleDef>
+    </li>
+  </thingDefStyles>
+</StyleCategoryDef>
+```
+
+A rifle styled this way fires a single overcharged twelve-round burst and is
+then destroyed, exactly like a vanilla `Verb_ShootOneUse` weapon (such as
+`Gun_TripleRocket`) - because the styled instance's runtime verb genuinely
+is a `Verb_ShootOneUse`, not a `Verb_Shoot` with borrowed properties. An
+unstyled `Gun_AssaultRifle`, or the same rifle with a different style,
+keeps its normal reusable `Verb_Shoot` behavior. This is a trimmed copy of
+the full worked example (with explanatory comments) shipped in
+`Example Mod/1.6/Defs/ThingStyleDefs/ExampleStyledAssaultRifle.xml`.
+
+Rules and limits:
+
+- The switch is per equipped item, applied immediately when a style is
+  assigned, removed, or replaced, and reconstructed the same way after a
+  save/load cycle; it never touches `ThingDef.Verbs` on the mapped weapon or
+  the template, so unstyled copies and other styles are unaffected.
+- The template's class must stay within the compatible family for the field
+  used (`Verb_LaunchProjectile` for `projectileSource`, `Verb_ShootBeam` for
+  `beamSource`, checked at def-validation time as described above); it can
+  never turn a projectile weapon into a beam, melee, ability, or unrelated
+  verb, regardless of the mapped weapon's own class.
+- Anything the switched-to class implements as behavior rather than data -
+  `Verb_ShootOneUse`'s self-consumption is the vanilla example - runs
+  exactly as it would on a weapon that natively used that class. The
+  framework does not emulate or suppress that behavior; it only decides
+  which class gets instantiated.
+- A mod-defined `Verb_LaunchProjectile` or `Verb_ShootBeam` subclass (for
+  example, from a weapons-expansion mod) works the same way, as long as its
+  assembly is loaded before this framework builds the item's verbs.
 
 ## Beam weapons
 
@@ -385,10 +479,12 @@ own `soundCast`/`soundCastTail`/`soundAiming` fields only ever apply to
 Rules and limits:
 
 - `beamSource` is only used by a weapon whose selected primary verb is
-  `Verb_ShootBeam`, or a subclass that is exactly the same runtime verb
-  class as the template's primary verb. It cannot turn a bullet, spray, or
-  fire weapon into a beam weapon; the change never touches the verb type,
-  only the properties of an already-instantiated `Verb_ShootBeam`.
+  `Verb_ShootBeam` or any descendant, and only if the template's own primary
+  verb is also a `Verb_ShootBeam` descendant. As with `projectileSource`
+  (see "Runtime class switching" below), the template's runtime verb class
+  does not have to match the mapped weapon's own class within that family.
+  It cannot turn a bullet, spray, fire, ability, or melee weapon into a beam
+  weapon; those verb families are outside `beamSource`'s scope entirely.
   Spray and fire verbs remain unsupported entirely.
 - The override is instance-scoped: it clones the template's verb properties
   onto the runtime `Verb` of the exact styled item, and never mutates
@@ -402,9 +498,10 @@ Rules and limits:
   occurs. The legacy `projectile`/sound fields are likewise independent of
   `beamSource`, but mutually exclusive with `projectileSource` (see
   "Projectile weapon templates" above).
-- Invalid configurations (a missing or ambiguous beam verb on the template,
-  or a mapped weapon whose primary verb class doesn't exactly match the
-  template's) fail during def validation instead of silently doing nothing.
+- Invalid configurations (a missing or ambiguous `Verb_ShootBeam`-derived
+  verb on the template, or no mapped weapon whose primary verb is a
+  `Verb_ShootBeam` descendant) fail during def validation instead of
+  silently doing nothing.
 - The template is a real, non-abstract `ThingDef` (it has to be, so
   `beamSource` can resolve a `DefDatabase` reference to it), so it is
   checked against vanilla's own `ConfigErrors` for whatever it inherits
