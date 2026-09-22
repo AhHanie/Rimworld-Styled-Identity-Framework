@@ -75,9 +75,14 @@ namespace Styled_Identity_Framework
                 return current;
             }
 
+            VerbProperties original = current[index];
+            VerbProperties clone = templateProps.MemberwiseClone();
+            clone.label = original.label;
+            clone.untranslatedLabel = original.untranslatedLabel;
+
             List<VerbProperties> copy = new List<VerbProperties>(current)
             {
-                [index] = templateProps.MemberwiseClone()
+                [index] = clone
             };
             return copy;
         }

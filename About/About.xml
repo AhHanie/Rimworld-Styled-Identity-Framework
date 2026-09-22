@@ -7,14 +7,18 @@
         <li>1.6</li>
     </supportedVersions>
     <description>A framework for style-pack authors. Lets an individual Ideology-applied ThingStyleDef carry its own custom flavor description and projectile or beam configuration.</description>
-    <modVersion>1.7.0</modVersion>
-    <url>Steam URL</url>
+    <modVersion>1.7.1</modVersion>
+    <url>https://steamcommunity.com/sharedfiles/filedetails/?id=3807506394</url>
     <modDependencies>
         <li>
             <packageId>brrainz.harmony</packageId>
             <displayName>Harmony</displayName>
             <steamWorkshopUrl>steam://url/CommunityFilePage/2009463077</steamWorkshopUrl>
             <downloadUrl>https://github.com/pardeike/HarmonyRimWorld/releases/latest</downloadUrl>
+        </li>
+        <li>
+            <packageId>Ludeon.RimWorld.Ideology</packageId>
+            <displayName>Ideology</displayName>
         </li>
     </modDependencies>
 </ModMetaData>

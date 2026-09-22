@@ -56,7 +56,11 @@ leaves the matching vanilla behavior completely unchanged.
   quality, hit-point, corpse, and stack-count suffixes are still appended
   automatically. For a weapon mapped to this framework, `overrideLabel` also
   becomes the label shown on the drafted pawn's standard weapon (attack)
-  gizmo, not just the item's inventory label.
+  gizmo, not just the item's inventory label. It is the supported way to put
+  the styled item's name on that gizmo: `projectileSource` and `beamSource`
+  never copy the template's own verb `label`/`untranslatedLabel` (see
+  below), so a mapped weapon with no verb label of its own stays icon-only
+  on the gizmo until a style sets `overrideLabel`.
 - `<description>` replaces only the def-level flavor text. Text added by
   components (for example, generated weapon-art descriptions) still appears
   after it. For a weapon mapped to this framework, this flavor also appears
@@ -106,7 +110,8 @@ and items from unrelated mods keep full vanilla behavior.
 `Verb_LaunchProjectile` weapon's verb at a time. To replace the **entire**
 verb configuration (range, warm-up, burst count/interval, targeting,
 forced-miss settings, the launched projectile, firing/aiming sounds,
-`commandIcon`, and every other `VerbProperties` field), use
+`commandIcon`, and every other `VerbProperties` field except the command
+label - see the `label`/`untranslatedLabel` exception below), use
 `<projectileSource>` instead. It works exactly like `beamSource` (below),
 but for `Verb_LaunchProjectile` weapons instead of `Verb_ShootBeam` ones.
 
@@ -257,14 +262,20 @@ own `defaultProjectile`.
 Rules and limits:
 
 - "Everything" means every field of the compatible primary `VerbProperties`,
-  exactly as for `beamSource`; this is not a hard-coded list, so any future
-  RimWorld `VerbProperties` field that `MemberwiseClone()` copies is included
-  automatically. Representative categories: targeting/range (`range`,
-  `minRange`, `forceNormalTest`), warm-up/burst (`warmupTime`,
-  `burstShotCount`, `ticksBetweenBurstShots`), projectile and forced-miss
-  (`defaultProjectile`, `ForcedMissRadius`, `forcedMissEvenDispersal`), and
-  effects/sounds/UI (`soundCast`, `soundCastTail`, `soundAiming`,
-  `commandIcon`, muzzle flash and other effecters).
+  exactly as for `beamSource`, **except** `label` and `untranslatedLabel`:
+  this is not a hard-coded list, so any future RimWorld `VerbProperties`
+  field that `MemberwiseClone()` copies is included automatically, but the
+  framework always overwrites the clone's `label`/`untranslatedLabel` back
+  to the mapped weapon's own values immediately afterward. A template
+  therefore can never introduce or rename the styled item's shoot-gizmo
+  label; use `overrideLabel` on the `ThingStyleDef` to show the styled
+  item's name on that gizmo instead. Representative categories: targeting/
+  range (`range`, `minRange`, `forceNormalTest`), warm-up/burst
+  (`warmupTime`, `burstShotCount`, `ticksBetweenBurstShots`), projectile and
+  forced-miss (`defaultProjectile`, `ForcedMissRadius`,
+  `forcedMissEvenDispersal`), and effects/sounds/UI (`soundCast`,
+  `soundCastTail`, `soundAiming`, `commandIcon`, muzzle flash and other
+  effecters).
 - It does **not** override values sourced from the runtime item itself.
   Vanilla equipped-weapon accuracy and cooldown come from the mapped
   weapon's own `Accuracy*` and `RangedWeapon_Cooldown` stats, not from the
@@ -408,14 +419,17 @@ the styled beam configuration (damage, sweep, hit, visual, fire, mote,
 effecter, and sound fields). The template is never spawned by the framework;
 it exists only to hold a `Verb_ShootBeam` verb definition to copy from.
 
-`beamSource` copies the template's entire `VerbProperties`, so it already
-covers audio: `soundCast`, `soundCastTail`, and `soundAiming` behave exactly
-as they do for a normal gun, and `soundCastBeam` is the sustaining `SoundDef`
-for the continuous firing loop that most beam weapons actually want. Set
-whichever of these the template needs directly on its verb; there is no
-separate beam sound field on `StyleIdentityExtension`, and the extension's
-own `soundCast`/`soundCastTail`/`soundAiming` fields only ever apply to
-`Verb_LaunchProjectile` weapons, never to a beam weapon's `beamSource`.
+`beamSource` copies the template's entire `VerbProperties` (with the same
+`label`/`untranslatedLabel` exception described under "Projectile weapon
+templates" above - the mapped weapon's own verb label is always kept), so it
+already covers audio: `soundCast`, `soundCastTail`, and `soundAiming` behave
+exactly as they do for a normal gun, and `soundCastBeam` is the sustaining
+`SoundDef` for the continuous firing loop that most beam weapons actually
+want. Set whichever of these the template needs directly on its verb; there
+is no separate beam sound field on `StyleIdentityExtension`, and the
+extension's own `soundCast`/`soundCastTail`/`soundAiming` fields only ever
+apply to `Verb_LaunchProjectile` weapons, never to a beam weapon's
+`beamSource`.
 
 ```xml
 <ThingStyleDef>
